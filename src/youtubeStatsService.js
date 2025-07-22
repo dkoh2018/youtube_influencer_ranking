@@ -1,6 +1,14 @@
 const axios = require('axios');
 const { DEFAULT_CONFIG } = require('../config/defaults');
 
+// Custom error for quota exceeded
+class QuotaExceededError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'QuotaExceededError';
+  }
+}
+
 class YouTubeStatsService {
   constructor(apiKey) {
     this.apiKey = apiKey;
@@ -29,6 +37,9 @@ class YouTubeStatsService {
 
       throw new Error(`Channel stats not found: ${channelId}`);
     } catch (error) {
+      if (error.response?.status === 403) {
+        throw new QuotaExceededError('YouTube API quota exceeded.');
+      }
       console.error(`Error getting channel stats for ${channelId}:`, error.message);
       throw error;
     }
@@ -67,6 +78,9 @@ class YouTubeStatsService {
 
       return allStats;
     } catch (error) {
+      if (error.response?.status === 403) {
+        throw new QuotaExceededError('YouTube API quota exceeded.');
+      }
       console.error(`Error getting video stats:`, error.message);
       throw error;
     }
@@ -78,8 +92,20 @@ class YouTubeStatsService {
       // Step 1: Get basic channel info (costs 1 API unit)
       const channelData = await this.getChannelData(usernameOrHandle);
       
-      // Step 2: Get subscriber count and view count (costs 1 API unit)
-      const channelStats = await this.getChannelStats(channelData.channelId);
+      let channelStats;
+      // Step 2: Get subscriber count and view count (CONDITIONAL)
+      if (processingStatus && processingStatus.ageHours < 24) {
+          // If we have recent data, use it instead of a new API call
+          console.log(`   Using cached channel stats for ${channelData.channelTitle}`);
+          channelStats = {
+              subscriberCount: processingStatus.subscriber_count,
+              totalViews: processingStatus.total_views,
+              totalVideos: processingStatus.youtube_total_videos
+          };
+      } else {
+          // Otherwise, fetch fresh stats
+          channelStats = await this.getChannelStats(channelData.channelId);
+      }
       
       // Step 3: Decide how to get videos
       let videos;
@@ -151,7 +177,8 @@ class YouTubeStatsService {
       
       // Step 7: Calculate total API cost
       const statsCost = Math.ceil(videoIds.length / 50);
-      const totalCost = 2 + fetchCost + statsCost; // 2 for channel info
+      const channelInfoCost = processingStatus && processingStatus.ageHours < 24 ? 1 : 2; // 1 if cached, 2 if fresh
+      const totalCost = channelInfoCost + fetchCost + statsCost;
       
       // Return everything
       return {
@@ -229,6 +256,9 @@ class YouTubeStatsService {
 
       throw new Error(`Channel not found: ${usernameOrHandle}`);
     } catch (error) {
+      if (error.response?.status === 403) {
+        throw new QuotaExceededError('YouTube API quota exceeded.');
+      }
       console.error(`Error getting channel data for ${usernameOrHandle}:`, error.message);
       throw error;
     }
@@ -268,6 +298,9 @@ class YouTubeStatsService {
 
       return videos;
     } catch (error) {
+      if (error.response?.status === 403) {
+        throw new QuotaExceededError('YouTube API quota exceeded.');
+      }
       console.error(`Error fetching videos from playlist ${uploadsPlaylistId}:`, error.message);
       throw error;
     }
@@ -346,6 +379,9 @@ class YouTubeStatsService {
       return newVideos;
 
     } catch (error) {
+      if (error.response?.status === 403) {
+        throw new QuotaExceededError('YouTube API quota exceeded.');
+      }
       console.error(`Error in incremental fetch from playlist ${uploadsPlaylistId}:`, error.message);
       throw error;
     }

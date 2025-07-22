@@ -41,11 +41,15 @@ async function runAnalyticsEngine() {
     console.log('Analytics engine completed successfully!');
     
   } catch (error) {
-    console.error('Engine failed:', error.message);
-    console.log('\nEnsure:');
-    console.log('1. Server is running: npm run dev');
-    console.log('2. Database schema is up to date');
-    console.log('3. YouTube API key is valid');
+    if (error.name === 'QuotaExceededError') {
+      console.error('\nSTOPPING: YouTube API quota has been exceeded. Please try again tomorrow.');
+    } else {
+      console.error('Engine failed:', error.message);
+      console.log('\nEnsure:');
+      console.log('1. Server is running: npm run dev');
+      console.log('2. Database schema is up to date');
+      console.log('3. YouTube API key is valid');
+    }
   }
 }
 

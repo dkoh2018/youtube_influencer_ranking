@@ -61,16 +61,22 @@ class AnalyticsEngine {
           videosPerInfluencer
         );
 
+        // -- NEW STEP --
+        // Check which of these videos we already have comments for
+        const videoIdsForComments = videosForComments.map(v => v.videoId);
+        const videoIdsToFetch = await this.db.filterVideosWithoutComments(videoIdsForComments);
+        const videosToFetchCommentsFor = videosForComments.filter(v => videoIdsToFetch.includes(v.videoId));
+
         // Start with empty comment result
         let commentResult = { 
           comments: [], 
           apiCost: 0 
         };
         
-        // STEP 3: Get comments if we want them and have videos
-        if (includeComments && videosForComments.length > 0) {
+        // STEP 3: Get comments if we want them and have videos to fetch
+        if (includeComments && videosToFetchCommentsFor.length > 0) {
           commentResult = await this.processVideoComments(
-            videosForComments, 
+            videosToFetchCommentsFor, 
             commentsPerVideo
           );
         }

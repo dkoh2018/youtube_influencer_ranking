@@ -166,7 +166,10 @@ class Database {
       indexedVideos: data.indexed_videos,
       totalVideos: data.youtube_total_videos,
       latestVideo: data.latest_indexed_video,
-      ageHours: ageHours
+      ageHours: ageHours,
+      subscriber_count: data.subscriber_count,
+      total_views: data.total_views,
+      youtube_total_videos: data.youtube_total_videos
     };
   }
 
@@ -322,6 +325,32 @@ class Database {
       publishedAt: video.published_at,
       hasComments: video.comments[0]?.count > 0
     }));
+  }
+
+  // Check which videos already have comments indexed (OPTIMIZATION)
+  async filterVideosWithoutComments(videoIds) {
+    if (!videoIds || videoIds.length === 0) {
+      return [];
+    }
+
+    const { data, error } = await this.supabase
+      .from('comments')
+      .select('video_id')
+      .in('video_id', videoIds);
+
+    if (error) {
+      console.error('Error checking for existing comments:', error.message);
+      return videoIds; // On error, try to process all to be safe
+    }
+
+    const videosWithComments = new Set(data.map(item => item.video_id));
+    const videosWithoutComments = videoIds.filter(id => !videosWithComments.has(id));
+
+    if (videosWithComments.size > 0) {
+        console.log(`   Skipping comment fetch for ${videosWithComments.size} videos that are already indexed.`);
+    }
+
+    return videosWithoutComments;
   }
 }
 

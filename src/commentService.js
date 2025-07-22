@@ -1,6 +1,14 @@
 const axios = require('axios');
 const { DEFAULT_CONFIG } = require('../config/defaults');
 
+// Custom error for quota exceeded
+class QuotaExceededError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = 'QuotaExceededError';
+  }
+}
+
 class CommentService {
   constructor(apiKey) {
     this.apiKey = apiKey;
@@ -59,8 +67,13 @@ class CommentService {
       return comments;
 
     } catch (error) {
-      // Handle case where comments are disabled
+      // Handle case where comments are disabled or quota exceeded
       if (error.response?.status === 403) {
+        // Check if it's a quota error specifically
+        if (error.response?.data?.error?.errors?.[0]?.reason === 'quotaExceeded') {
+          throw new QuotaExceededError('YouTube API quota exceeded.');
+        }
+        // Otherwise, comments are just disabled for this video
         return [];
       }
       
