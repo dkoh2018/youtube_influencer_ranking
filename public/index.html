@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Analytics Dashboard</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 1rem 0;
+            box-shadow: 0 2px 20px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .navbar .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #667eea;
+        }
+
+        .breadcrumb {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .breadcrumb a {
+            color: #667eea;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
+
+        .breadcrumb a:hover {
+            color: #764ba2;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            color: white;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.8);
+            font-size: 1.1rem;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .search-box {
+            flex: 1;
+            min-width: 300px;
+            position: relative;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: none;
+            border-radius: 25px;
+            background: white;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            font-size: 1rem;
+            outline: none;
+            transition: box-shadow 0.2s;
+        }
+
+        .search-box input:focus {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 25px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+        }
+
+        .btn-secondary:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .status {
+            margin: 1rem 0;
+            padding: 1rem;
+            border-radius: 10px;
+            font-weight: 500;
+            display: none;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status.loading {
+            background: linear-gradient(45deg, #ffeaa7, #fdcb6e);
+            color: #e17055;
+        }
+
+        .status.success {
+            background: linear-gradient(45deg, #55efc4, #00b894);
+            color: white;
+        }
+
+        .status.error {
+            background: linear-gradient(45deg, #fd79a8, #e84393);
+            color: white;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .avatar {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            font-size: 1.2rem;
+        }
+
+        .card-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.25rem;
+        }
+
+        .card-subtitle {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .card-content {
+            margin: 1rem 0;
+        }
+
+        .metric {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin: 0.5rem 0;
+            padding: 0.5rem;
+            background: #f8f9ff;
+            border-radius: 8px;
+        }
+
+        .metric-label {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .metric-value {
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+            overflow-x: auto;
+            overflow-y: visible;
+        }
+
+        .table-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 2px solid #f1f3f5;
+        }
+
+        .table-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            min-width: 800px;
+            border-collapse: collapse;
+        }
+
+        th {
+            background: #f8f9ff;
+            padding: 1rem;
+            text-align: left;
+            font-weight: 600;
+            color: #667eea;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        td {
+            padding: 1rem;
+            border-bottom: 1px solid #e9ecef;
+            transition: background 0.2s;
+        }
+
+        tr:hover td {
+            background: #f8f9ff;
+        }
+
+        .clickable-row {
+            cursor: pointer;
+        }
+
+        .text-truncate {
+            max-width: 400px;
+            min-width: 200px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .comment-cell {
+            max-width: 400px;
+            min-width: 250px;
+            max-height: 120px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.4;
+            padding: 0.75rem;
+            background: #f8f9ff;
+            border-radius: 8px;
+            position: relative;
+        }
+
+        .comment-text {
+            display: -webkit-box;
+            -webkit-line-clamp: 4;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .comment-text.expanded {
+            display: block;
+            -webkit-line-clamp: unset;
+        }
+
+        .comment-expand-btn {
+            color: #667eea;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 0.25rem;
+            display: inline-block;
+        }
+
+        .comment-expand-btn:hover {
+            text-decoration: underline;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 2rem 0;
+        }
+
+        .page-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .page-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .page-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .stats-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 15px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 1rem;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .controls {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            
+            .search-box {
+                min-width: unset;
+            }
+            
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <div class="logo">📊 Analytics Dashboard</div>
+            <div class="breadcrumb" id="breadcrumb">
+                <a onclick="showInfluencers()">Influencers</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container">
+        <div class="header">
+            <h1 id="pageTitle">YouTube Analytics Dashboard</h1>
+            <p id="pageSubtitle">Explore your influencer and video performance data</p>
+        </div>
+
+        <div class="controls">
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Search..." onkeyup="handleSearch()">
+            </div>
+            <button class="btn btn-primary" onclick="showInfluencers()">
+                🏠 Home
+            </button>
+            <button class="btn btn-secondary" id="backBtn" onclick="goBack()" style="display: none;">
+                ← Back
+            </button>
+        </div>
+
+        <div id="status" class="status"></div>
+
+        <div id="statsContainer" class="stats-row" style="display: none;"></div>
+
+        <div id="cardContainer" class="grid"></div>
+        <div id="tableContainer" class="table-container" style="display: none;">
+            <div class="table-header">
+                <div class="table-title" id="tableTitle">Data</div>
+                <div id="tableControls"></div>
+            </div>
+            <table id="dataTable">
+                <thead id="tableHead"></thead>
+                <tbody id="tableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="pagination" class="pagination" style="display: none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:3000/api';
+        let currentView = 'influencers';
+        let currentInfluencer = null;
+        let currentVideo = null;
+        let currentPage = 1;
+        let itemsPerPage = 50;
+        let allData = [];
+        let filteredData = [];
+
+        function showStatus(message, type = 'loading') {
+            const status = document.getElementById('status');
+            status.innerHTML = type === 'loading' ? 
+                `<div class="loading-spinner"></div> ${message}` : message;
+            status.className = `status ${type}`;
+            status.style.display = 'flex';
+            if (type === 'success') {
+                setTimeout(() => status.style.display = 'none', 3000);
+            }
+        }
+
+        function updateBreadcrumb() {
+            const breadcrumb = document.getElementById('breadcrumb');
+            const backBtn = document.getElementById('backBtn');
+            const pageTitle = document.getElementById('pageTitle');
+            const pageSubtitle = document.getElementById('pageSubtitle');
+            
+            if (currentView === 'influencers') {
+                breadcrumb.innerHTML = '<a onclick="showInfluencers()">Influencers</a>';
+                backBtn.style.display = 'none';
+                pageTitle.textContent = 'Influencers Overview';
+                pageSubtitle.textContent = 'Browse and analyze your tracked influencers';
+            } else if (currentView === 'videos') {
+                breadcrumb.innerHTML = `
+                    <a onclick="showInfluencers()">Influencers</a> > 
+                    <span>${currentInfluencer}</span>
+                `;
+                backBtn.style.display = 'inline-flex';
+                pageTitle.textContent = `${currentInfluencer}'s Videos`;
+                pageSubtitle.textContent = 'Explore video performance and analytics';
+            } else if (currentView === 'comments') {
+                breadcrumb.innerHTML = `
+                    <a onclick="showInfluencers()">Influencers</a> > 
+                    <a onclick="showVideos('${currentInfluencer}')">${currentInfluencer}</a> > 
+                    <span>${currentVideo.title}</span>
+                `;
+                backBtn.style.display = 'inline-flex';
+                pageTitle.textContent = 'Video Comments';
+                pageSubtitle.textContent = 'Analyze audience engagement and feedback';
+            }
+        }
+
+        function goBack() {
+            if (currentView === 'comments') {
+                showVideos(currentInfluencer);
+            } else if (currentView === 'videos') {
+                showInfluencers();
+            }
+        }
+
+        function handleSearch() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            if (currentView === 'videos') {
+                filteredData = allData.filter(video => 
+                    (video.title && video.title.toLowerCase().includes(searchTerm)) ||
+                    (video.video_id && video.video_id.toLowerCase().includes(searchTerm))
+                );
+                currentPage = 1;
+                renderVideos();
+            } else if (currentView === 'comments') {
+                filteredData = allData.filter(comment => 
+                    (comment.text_content && comment.text_content.toLowerCase().includes(searchTerm)) ||
+                    (comment.author_name && comment.author_name.toLowerCase().includes(searchTerm))
+                );
+                renderComments();
+            }
+        }
+
+        function createInfluencerCards(data) {
+            const container = document.getElementById('cardContainer');
+            const tableContainer = document.getElementById('tableContainer');
+            
+            container.style.display = 'grid';
+            tableContainer.style.display = 'none';
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: #666;">No influencers found</div>';
+                return;
+            }
+
+            container.innerHTML = data.map((influencer, index) => {
+                // Handle both string and object formats
+                const name = typeof influencer === 'string' ? influencer : 
+                            (influencer.username || influencer.name || influencer.channel_title || 'Unknown');
+                const displayName = (influencer.channelTitle || name).replace('@', '');
+                const initials = displayName.split(/[\s_]/).map(n => n[0]).join('').toUpperCase().slice(0, 2);
+                const videoCount = influencer.videoCount || 0;
+                const status = videoCount > 0 ? 'Indexed' : 'Not Indexed';
+                
+                return `
+                    <div class="card" onclick="selectInfluencer(${index})">
+                        <div class="card-header">
+                            <div class="avatar">${initials}</div>
+                            <div>
+                                <div class="card-title">${displayName}</div>
+                                <div class="card-subtitle">${name}</div>
+                            </div>
+                        </div>
+                        <div class="card-content">
+                            <div class="metric">
+                                <span class="metric-label">Total Videos</span>
+                                <span class="metric-value">${videoCount.toLocaleString()}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Status</span>
+                                <span class="metric-value" style="color: ${videoCount > 0 ? '#00b894' : '#e17055'}">${status}</span>
+                            </div>
+                            ${influencer.channelId ? `
+                            <div class="metric">
+                                <span class="metric-label">Channel ID</span>
+                                <span class="metric-value">${influencer.channelId.slice(0, 10)}...</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function createStatsCards(stats) {
+            const container = document.getElementById('statsContainer');
+            if (!stats) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'grid';
+            container.innerHTML = Object.entries(stats).map(([label, value]) => `
+                <div class="stat-card">
+                    <div class="stat-number">${typeof value === 'number' ? value.toLocaleString() : value}</div>
+                    <div class="stat-label">${label.replace(/_/g, ' ')}</div>
+                </div>
+            `).join('');
+        }
+
+        function renderVideos() {
+            const container = document.getElementById('cardContainer');
+            const tableContainer = document.getElementById('tableContainer');
+            const paginationContainer = document.getElementById('pagination');
+            
+            container.style.display = 'none';
+            tableContainer.style.display = 'block';
+            
+            let pageData;
+            if (itemsPerPage === 'all') {
+                pageData = filteredData;
+                paginationContainer.style.display = 'none';
+            } else {
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                const endIndex = startIndex + itemsPerPage;
+                pageData = filteredData.slice(startIndex, endIndex);
+                renderPagination(filteredData.length);
+            }
+            
+            document.getElementById('tableTitle').textContent = `Videos (${filteredData.length} total)`;
+            
+            // Add pagination controls in table header
+            const tableControls = document.getElementById('tableControls');
+            tableControls.innerHTML = `
+                <select onchange="changePageSize(this.value)" style="padding: 0.5rem; border-radius: 8px; border: 1px solid #ddd;">
+                    <option value="20" ${itemsPerPage === 20 ? 'selected' : ''}>20 per page</option>
+                    <option value="50" ${itemsPerPage === 50 ? 'selected' : ''}>50 per page</option>
+                    <option value="100" ${itemsPerPage === 100 ? 'selected' : ''}>100 per page</option>
+                    <option value="all" ${itemsPerPage === 'all' ? 'selected' : ''}>Show All</option>
+                </select>
+            `;
+            
+            createTable(pageData, 'selectVideo', 'videos');
+        }
+
+        function renderComments() {
+            const container = document.getElementById('cardContainer');
+            const tableContainer = document.getElementById('tableContainer');
+            
+            container.style.display = 'none';
+            tableContainer.style.display = 'block';
+            
+            document.getElementById('tableTitle').textContent = `Comments (${filteredData.length} total)`;
+            createTable(filteredData, null, 'comments');
+        }
+
+        function renderPagination(totalItems) {
+            const container = document.getElementById('pagination');
+            const totalPages = Math.ceil(totalItems / itemsPerPage);
+            
+            if (totalPages <= 1) {
+                container.style.display = 'none';
+                return;
+            }
+            
+            container.style.display = 'flex';
+            
+            let html = `
+                <button class="page-btn" onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                    ← Previous
+                </button>
+            `;
+            
+            const startPage = Math.max(1, currentPage - 2);
+            const endPage = Math.min(totalPages, currentPage + 2);
+            
+            if (startPage > 1) {
+                html += '<button class="page-btn" onclick="changePage(1)">1</button>';
+                if (startPage > 2) html += '<span>...</span>';
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="changePage(${i})">${i}</button>`;
+            }
+            
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) html += '<span>...</span>';
+                html += `<button class="page-btn" onclick="changePage(${totalPages})">${totalPages}</button>`;
+            }
+            
+            html += `
+                <button class="page-btn" onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                    Next →
+                </button>
+            `;
+            
+            container.innerHTML = html;
+        }
+
+        function changePage(page) {
+            if (page < 1 || page > Math.ceil(filteredData.length / itemsPerPage)) return;
+            currentPage = page;
+            renderVideos();
+        }
+
+        function changePageSize(newSize) {
+            itemsPerPage = newSize === 'all' ? 'all' : parseInt(newSize);
+            currentPage = 1;
+            renderVideos();
+        }
+
+        function getRelevantColumns(data, viewType) {
+            if (!data || data.length === 0) return [];
+            
+            const allColumns = Object.keys(data[0]);
+            
+            // Define important columns for each view
+            const columnPriority = {
+                videos: [
+                    'title', 'published_at', 'view_count', 'like_count', 'comment_count', 
+                    'duration', 'thumbnail_url', 'description'
+                ],
+                comments: [
+                    'author_name', 'published_at', 'reply_count', 'like_count', 'text_content'
+                ]
+            };
+            
+            const priorityColumns = columnPriority[viewType] || allColumns;
+            
+            // Filter to only show columns that exist in data and are in priority list
+            return priorityColumns.filter(col => allColumns.includes(col));
+        }
+
+        function createTable(data, clickHandler = null, viewType = null) {
+            const tableHead = document.getElementById('tableHead');
+            const tableBody = document.getElementById('tableBody');
+            
+            if (!data || data.length === 0) {
+                tableHead.innerHTML = '';
+                tableBody.innerHTML = '<tr><td colspan="100%" style="text-align: center; color: #666;">No data available</td></tr>';
+                return;
+            }
+            
+            const headers = getRelevantColumns(data, viewType);
+            tableHead.innerHTML = `<tr>${headers.map(h => 
+                `<th>${h.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</th>`
+            ).join('')}</tr>`;
+            
+            tableBody.innerHTML = data.map((row, index) => {
+                const cells = headers.map(h => {
+                    let value = row[h];
+                    if (value === null || value === undefined) value = '-';
+                    
+
+                    
+                    // Format specific column types
+                    if (h === 'view_count' || h === 'like_count' || h === 'comment_count') {
+                        value = typeof value === 'number' ? value.toLocaleString() : value;
+                    }
+                    
+                    // Duration formatting (handles both seconds and ISO 8601 format)
+                    if (h === 'duration') {
+                        if (typeof value === 'number') {
+                            const hours = Math.floor(value / 3600);
+                            const minutes = Math.floor((value % 3600) / 60);
+                            const seconds = value % 60;
+                            value = hours > 0 ? `${hours}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}` 
+                                             : `${minutes}:${seconds.toString().padStart(2,'0')}`;
+                        } else if (typeof value === 'string' && value.startsWith('PT')) {
+                            // Parse ISO 8601 duration format (PT1M39S)
+                            const match = value.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+                            if (match) {
+                                const hours = parseInt(match[1]) || 0;
+                                const minutes = parseInt(match[2]) || 0;
+                                const seconds = parseInt(match[3]) || 0;
+                                value = hours > 0 ? `${hours}:${minutes.toString().padStart(2,'0')}:${seconds.toString().padStart(2,'0')}` 
+                                                 : `${minutes}:${seconds.toString().padStart(2,'0')}`;
+                            }
+                        }
+                    }
+                    
+                    // Regular text truncation for long strings
+                    if (typeof value === 'string' && value.length > 100) {
+                        value = `<span class="text-truncate" title="${value.replace(/"/g, '&quot;')}">${value}</span>`;
+                    }
+                    
+                    // Date formatting in Chicago time
+                    if (h.includes('date') || h.includes('time') || h.includes('published_at') || h.includes('created_at') || h.includes('updated_at') || h.includes('indexed_at')) {
+                        const date = new Date(value);
+                        value = date.toLocaleString('en-US', {
+                            timeZone: 'America/Chicago',
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                            hour12: true
+                        });
+                    }
+                    
+                    // Hide thumbnail URLs, just show indicator
+                    if (h === 'thumbnail_url') {
+                        value = value ? '🖼️ Yes' : '❌ No';
+                    }
+                    
+                    return `<td>${value}</td>`;
+                }).join('');
+                
+                const rowClass = clickHandler ? 'clickable-row' : '';
+                const onClick = clickHandler ? `onclick="${clickHandler}(${index})"` : '';
+                return `<tr class="${rowClass}" ${onClick}>${cells}</tr>`;
+            }).join('');
+        }
+
+        async function showInfluencers() {
+            currentView = 'influencers';
+            currentInfluencer = null;
+            currentVideo = null;
+            currentPage = 1;
+            updateBreadcrumb();
+            
+            document.getElementById('searchInput').value = '';
+            document.getElementById('pagination').style.display = 'none';
+            
+            showStatus('Loading influencers...', 'loading');
+            try {
+                const response = await fetch(`${API_BASE}/config/influencers`);
+                const data = await response.json();
+                
+                if (!response.ok) throw new Error(data.error || 'Failed to load influencers');
+                
+                window.influencersData = data.configured;
+                
+                // Load video counts for each influencer
+                showStatus('Loading video counts...', 'loading');
+                const influencersWithCounts = await loadInfluencerCounts(data.configured);
+                
+                createInfluencerCards(influencersWithCounts);
+                
+                const totalVideos = influencersWithCounts.reduce((sum, inf) => sum + (inf.videoCount || 0), 0);
+                createStatsCards({
+                    'Total Influencers': data.configured.length,
+                    'Total Videos': totalVideos,
+                    'Avg Videos per Influencer': Math.round(totalVideos / data.configured.length)
+                });
+                showStatus('Influencers loaded successfully', 'success');
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadInfluencerCounts(influencers) {
+            const influencersWithCounts = [];
+            
+            for (const influencer of influencers) {
+                const username = typeof influencer === 'string' ? influencer : influencer.username;
+                try {
+                    const response = await fetch(`${API_BASE}/influencer/${username}/videos?limit=1`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        influencersWithCounts.push({
+                            username: username,
+                            videoCount: data.totalVideos || 0,
+                            channelTitle: data.channelTitle,
+                            channelId: data.channelId
+                        });
+                    } else {
+                        influencersWithCounts.push({
+                            username: username,
+                            videoCount: 0,
+                            channelTitle: null,
+                            channelId: null
+                        });
+                    }
+                } catch (error) {
+                    influencersWithCounts.push({
+                        username: username,
+                        videoCount: 0,
+                        channelTitle: null,
+                        channelId: null
+                    });
+                }
+            }
+            
+            return influencersWithCounts;
+        }
+
+        function selectInfluencer(index) {
+            const influencer = window.influencersData[index];
+            // Handle string format from API  
+            const username = typeof influencer === 'string' ? influencer : influencer.username;
+            showVideos(username);
+        }
+
+        async function showVideos(username) {
+            currentView = 'videos';
+            currentInfluencer = username;
+            currentVideo = null;
+            currentPage = 1;
+            updateBreadcrumb();
+            
+            document.getElementById('searchInput').value = '';
+            document.getElementById('statsContainer').style.display = 'none';
+            
+            showStatus('Loading videos...', 'loading');
+            try {
+                const response = await fetch(`${API_BASE}/influencer/${username}/videos`);
+                const data = await response.json();
+                
+                if (!response.ok) throw new Error(data.error || 'Failed to load videos');
+                
+                allData = data.videos || [];
+                filteredData = [...allData];
+                window.videosData = allData;
+                
+                renderVideos();
+                showStatus(`${allData.length} videos loaded for ${username}`, 'success');
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        function selectVideo(index) {
+            let video;
+            if (itemsPerPage === 'all') {
+                video = filteredData[index];
+            } else {
+                const startIndex = (currentPage - 1) * itemsPerPage;
+                video = filteredData[startIndex + index];
+            }
+            showComments(video.video_id || video.videoId, video.title);
+        }
+
+        async function showComments(videoId, videoTitle) {
+            currentView = 'comments';
+            currentVideo = { id: videoId, title: videoTitle };
+            updateBreadcrumb();
+            
+            document.getElementById('searchInput').value = '';
+            document.getElementById('pagination').style.display = 'none';
+            
+            showStatus('Loading comments...', 'loading');
+            try {
+                const response = await fetch(`${API_BASE}/video/${videoId}/comments`);
+                const data = await response.json();
+                
+                if (!response.ok) throw new Error(data.error || 'Failed to load comments');
+                
+                allData = data || [];
+                filteredData = [...allData];
+                
+                renderComments();
+                showStatus(`${allData.length} comments loaded`, 'success');
+            } catch (error) {
+                showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+
+
+        // Load influencers on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            showInfluencers();
+        });
+    </script>
+</body>
+</html>
