@@ -61,11 +61,12 @@ class AnalyticsEngine {
           videosPerInfluencer
         );
 
-        // -- NEW STEP --
-        // Check which of these videos we already have comments for
-        const videoIdsForComments = videosForComments.map(v => v.videoId);
-        const videoIdsToFetch = await this.db.filterVideosWithoutComments(videoIdsForComments);
-        const videosToFetchCommentsFor = videosForComments.filter(v => videoIdsToFetch.includes(v.videoId));
+        // -- SMART INCREMENTAL STEP --
+        // Check which videos need additional comments (incremental approach)
+        const videosNeedingComments = await this.db.getVideosNeedingMoreComments(
+          videosForComments, 
+          commentsPerVideo
+        );
 
         // Start with empty comment result
         let commentResult = { 
@@ -73,10 +74,10 @@ class AnalyticsEngine {
           apiCost: 0 
         };
         
-        // STEP 3: Get comments if we want them and have videos to fetch
-        if (includeComments && videosToFetchCommentsFor.length > 0) {
+        // STEP 3: Get comments if we want them and have videos needing more comments
+        if (includeComments && videosNeedingComments.length > 0) {
           commentResult = await this.processVideoComments(
-            videosToFetchCommentsFor, 
+            videosNeedingComments, 
             commentsPerVideo
           );
         }
@@ -102,7 +103,8 @@ class AnalyticsEngine {
           commentsApiCost: commentResult.apiCost,
           newVideos: videoResult.newVideos || 0,
           commentsIndexed: commentsFound,
-          videosProcessedForComments: videosForComments.length
+          videosProcessedForComments: videosNeedingComments.length,
+          videosSkippedForComments: videosForComments.length - videosNeedingComments.length
         });
 
         // Add to our totals
@@ -178,7 +180,7 @@ class AnalyticsEngine {
   // Process comments for selected videos
   async processVideoComments(videos, maxCommentsPerVideo = DEFAULT_CONFIG.commentsPerVideo) {
     try {
-      const result = await this.commentService.getCommentsForVideos(videos, maxCommentsPerVideo);
+      const result = await this.commentService.getCommentsForVideos(videos, maxCommentsPerVideo, this.db);
       
       // Store comments in database
       if (result.comments.length > 0) {

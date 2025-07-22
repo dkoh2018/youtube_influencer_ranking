@@ -232,7 +232,7 @@ class Database {
 
   // COMMENT METHODS
 
-  // Store comments for videos
+  // Store comments for videos (with duplicate detection)
   async storeComments(comments) {
     if (!comments || comments.length === 0) return [];
 
@@ -249,13 +249,22 @@ class Database {
       indexed_at: new Date().toISOString()
     }));
 
+    // Use upsert with onConflict to handle duplicates automatically
     const { data, error } = await this.supabase
       .from('comments')
       .upsert(commentData, {
         onConflict: 'comment_id'
       });
 
-    if (error) throw error;
+    if (error) {
+      console.error('❌ ERROR SAVING COMMENTS:', error);
+      throw error;
+    }
+    
+    // Log duplicate detection info
+    const uniqueComments = commentData.length;
+    console.log(`   ✅ SAVED ${uniqueComments} comments to database (duplicates automatically handled)`);
+    
     return data;
   }
 
@@ -327,10 +336,12 @@ class Database {
     }));
   }
 
-  // Check which videos already have comments indexed (OPTIMIZATION)
-  async filterVideosWithoutComments(videoIds) {
+
+
+  // Get comment counts for videos (INCREMENTAL COMMENTS)
+  async getVideoCommentCounts(videoIds) {
     if (!videoIds || videoIds.length === 0) {
-      return [];
+      return new Map();
     }
 
     const { data, error } = await this.supabase
@@ -339,18 +350,191 @@ class Database {
       .in('video_id', videoIds);
 
     if (error) {
-      console.error('Error checking for existing comments:', error.message);
-      return videoIds; // On error, try to process all to be safe
+      console.error('❌ ERROR getting comment counts:', error.message);
+      return new Map();
     }
 
-    const videosWithComments = new Set(data.map(item => item.video_id));
-    const videosWithoutComments = videoIds.filter(id => !videosWithComments.has(id));
+    // Count comments per video
+    const commentCounts = new Map();
+    videoIds.forEach(videoId => commentCounts.set(videoId, 0)); // Initialize all to 0
+    
+    data?.forEach(comment => {
+      const videoId = comment.video_id;
+      commentCounts.set(videoId, (commentCounts.get(videoId) || 0) + 1);
+    });
 
-    if (videosWithComments.size > 0) {
-        console.log(`   Skipping comment fetch for ${videosWithComments.size} videos that are already indexed.`);
+    // Debug: Log comment counts found
+    const totalFound = data?.length || 0;
+    console.log(`   🔍 DEBUG: Found ${totalFound} existing comments in database for ${videoIds.length} videos`);
+
+    return commentCounts;
+  }
+
+  // Calculate which videos need additional comments (SMART INCREMENTAL)
+  async getVideosNeedingMoreComments(videos, targetCommentsPerVideo) {
+    const videoIds = videos.map(v => v.videoId);
+    const commentCounts = await this.getVideoCommentCounts(videoIds);
+    const commentStatus = await this.getVideoCommentStatus(videoIds);
+    
+    const videosNeedingComments = [];
+    let totalSkipped = 0;
+
+    videos.forEach(video => {
+      const existingCount = commentCounts.get(video.videoId) || 0;
+      const status = commentStatus.get(video.videoId);
+      
+      // Check if we need more comments
+      const needed = Math.max(0, targetCommentsPerVideo - existingCount);
+      
+      if (needed > 0) {
+        // Skip if video is fully scraped and we already have all available comments
+        if (status?.is_fully_scraped && existingCount >= (status.total_comments_available || 0)) {
+          totalSkipped++;
+          console.log(`   Skipping ${video.title}: only has ${status.total_comments_available} comments (already scraped)`);
+          return;
+        }
+        
+        // Skip if we previously targeted higher number and video was fully scraped
+        if (status?.is_fully_scraped && (status.max_comments_requested || 0) >= targetCommentsPerVideo) {
+          totalSkipped++;
+          console.log(`   Skipping ${video.title}: previously scraped ${status.max_comments_requested} target (has ${status.total_comments_available})`);
+          return;
+        }
+
+        videosNeedingComments.push({
+          ...video,
+          existingComments: existingCount,
+          commentsNeeded: needed,
+          isPartiallyScraped: status?.is_fully_scraped || false,
+          totalAvailable: status?.total_comments_available
+        });
+      } else {
+        totalSkipped++;
+      }
+    });
+
+    if (totalSkipped > 0) {
+      console.log(`   Skipping comment fetch for ${totalSkipped} videos that already have enough comments.`);
     }
 
-    return videosWithoutComments;
+    return videosNeedingComments;
+  }
+
+  // Get comment processing status for videos
+  async getVideoCommentStatus(videoIds) {
+    if (!videoIds || videoIds.length === 0) {
+      return new Map();
+    }
+
+    const { data, error } = await this.supabase
+      .from('video_comment_status')
+      .select('*')
+      .in('video_id', videoIds);
+
+    if (error) {
+      console.error('⚠️  video_comment_status table not found (this is expected on first run):', error.message);
+      return new Map(); // Return empty map, system will work without status tracking
+    }
+
+    const statusMap = new Map();
+    data?.forEach(status => {
+      statusMap.set(status.video_id, status);
+    });
+
+    return statusMap;
+  }
+
+  // Update video comment processing status
+  async updateVideoCommentStatus(videoId, totalCommentsFound, isFullyScraped, targetRequested) {
+    const { error } = await this.supabase
+      .from('video_comment_status')
+      .upsert({
+        video_id: videoId,
+        total_comments_available: totalCommentsFound,
+        is_fully_scraped: isFullyScraped,
+        max_comments_requested: targetRequested,
+        last_scraped_at: new Date().toISOString()
+      }, {
+        onConflict: 'video_id'
+      });
+
+    if (error) {
+      console.error('⚠️  Could not update video status (table may not exist):', error.message);
+      // Don't throw - this is optional optimization
+    }
+  }
+
+  // SENTIMENT ANALYSIS METHODS
+
+  // Save sentiment analysis results
+  async saveSentimentAnalysis(analysisResult) {
+    const { summary, themes } = analysisResult.analysis;
+    
+    const sentimentData = {
+      video_id: analysisResult.videoId,
+      total_comments_analyzed: summary.total_comments_analyzed,
+      net_sentiment_score: summary.net_sentiment_score,
+      positive_count: summary.positive_count,
+      negative_count: summary.negative_count,
+      neutral_count: summary.neutral_count,
+      themes: { themes }, // Store themes array as JSONB
+      analyzed_at: analysisResult.analyzedAt,
+      model_used: analysisResult.model,
+      processing_time_seconds: parseFloat(analysisResult.processingTime?.replace('s', '')) || null
+    };
+
+    const { data, error } = await this.supabase
+      .from('video_sentiment_analysis')
+      .upsert(sentimentData, {
+        onConflict: 'video_id'
+      });
+
+    if (error) {
+      console.error('❌ ERROR SAVING SENTIMENT ANALYSIS:', error);
+      throw error;
+    }
+    
+    console.log(`   ✅ SAVED sentiment analysis for video ${analysisResult.videoId}`);
+    return data;
+  }
+
+  // Get sentiment analysis for a video
+  async getSentimentAnalysis(videoId) {
+    const { data, error } = await this.supabase
+      .from('video_sentiment_analysis')
+      .select('*')
+      .eq('video_id', videoId)
+      .single();
+
+    if (error) {
+      if (error.code === 'PGRST116') {
+        // No rows found
+        return null;
+      }
+      throw error;
+    }
+    
+    return data;
+  }
+
+  // Get all sentiment analyses
+  async getAllSentimentAnalyses() {
+    const { data, error } = await this.supabase
+      .from('video_sentiment_analysis')
+      .select(`
+        *,
+        videos:video_id(title, published_at, channel_id, view_count)
+      `)
+      .order('analyzed_at', { ascending: false });
+
+    if (error) throw error;
+    return data;
+  }
+
+  // Check if video already has sentiment analysis
+  async hasSentimentAnalysis(videoId) {
+    const result = await this.getSentimentAnalysis(videoId);
+    return result !== null;
   }
 }
 

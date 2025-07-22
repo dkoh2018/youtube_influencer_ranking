@@ -5,7 +5,7 @@
  */
 
 require('dotenv').config();
-const AnalyticsEngine = require('./src/analyticsEngine');
+const AnalyticsEngine = require('./src/services/analyticsEngine');
 const { INFLUENCERS } = require('./config/influencers');
 const { DEFAULT_CONFIG } = require('./config/defaults');
 

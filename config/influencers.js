@@ -2,14 +2,17 @@
 
 const INFLUENCERS = [
   '@AdinLive',
-  '@DukeDennis',
+  '@DukeDennisLive',
   '@FanumLive',
   '@IShowSpeed',
   '@KaiCenatLive',
   '@loganpaulvlogs',
   '@MrBeast',
   '@rayliveee',
-  '@theschoolofhardknocks'
+  '@theschoolofhardknocks',
+  '@Agent00everything',
+  '@plaqueboymax5',
+  '@xQcOW'
 ];
 
 const INFLUENCER_CATEGORIES = {
@@ -17,9 +20,12 @@ const INFLUENCER_CATEGORIES = {
     '@IShowSpeed',
     '@KaiCenatLive',
     '@rayliveee',
-    '@DukeDennis',
+    '@DukeDennisLive',
     '@FanumLive',
-    '@AdinLive'
+    '@AdinLive',
+    '@Agent00everything',
+    '@plaqueboymax5',
+    '@xQcOW'
   ],
   entertainment: [
     '@MrBeast',

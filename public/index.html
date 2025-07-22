@@ -593,7 +593,7 @@
             }
         }
 
-        function createInfluencerCards(data) {
+        function createInfluencerCards(data, commentCounts = {}) {
             const container = document.getElementById('cardContainer');
             const tableContainer = document.getElementById('tableContainer');
             
@@ -612,6 +612,7 @@
                 const displayName = (influencer.channelTitle || name).replace('@', '');
                 const initials = displayName.split(/[\s_]/).map(n => n[0]).join('').toUpperCase().slice(0, 2);
                 const videoCount = influencer.videoCount || 0;
+                const commentCount = commentCounts[name] || 0;
                 const status = videoCount > 0 ? 'Indexed' : 'Not Indexed';
                 
                 return `
@@ -627,6 +628,10 @@
                             <div class="metric">
                                 <span class="metric-label">Total Videos</span>
                                 <span class="metric-value">${videoCount.toLocaleString()}</span>
+                            </div>
+                            <div class="metric">
+                                <span class="metric-label">Comments Saved</span>
+                                <span class="metric-value" style="color: ${commentCount > 0 ? '#00b894' : '#e17055'}">${commentCount.toLocaleString()}</span>
                             </div>
                             <div class="metric">
                                 <span class="metric-label">Status</span>
@@ -887,17 +892,40 @@
                 showStatus('Loading video counts...', 'loading');
                 const influencersWithCounts = await loadInfluencerCounts(data.configured);
                 
-                createInfluencerCards(influencersWithCounts);
+                // Load comment statistics
+                showStatus('Loading comment analytics...', 'loading');
+                const commentAnalytics = await loadCommentAnalytics();
+                
+                createInfluencerCards(influencersWithCounts, commentAnalytics.commentsByInfluencer);
                 
                 const totalVideos = influencersWithCounts.reduce((sum, inf) => sum + (inf.videoCount || 0), 0);
+                const avgCommentsPerInfluencer = commentAnalytics.totalComments > 0 ? 
+                    Math.round(commentAnalytics.totalComments / data.configured.length) : 0;
+                
                 createStatsCards({
                     'Total Influencers': data.configured.length,
                     'Total Videos': totalVideos,
-                    'Avg Videos per Influencer': Math.round(totalVideos / data.configured.length)
+                    'Total Comments Saved': commentAnalytics.totalComments,
+                    'Avg Videos per Influencer': Math.round(totalVideos / data.configured.length),
+                    'Avg Comments per Influencer': avgCommentsPerInfluencer
                 });
-                showStatus('Influencers loaded successfully', 'success');
+                showStatus('Dashboard loaded successfully', 'success');
             } catch (error) {
                 showStatus(`Error: ${error.message}`, 'error');
+            }
+        }
+
+        async function loadCommentAnalytics() {
+            try {
+                const response = await fetch(`${API_BASE}/analytics/comments`);
+                if (!response.ok) {
+                    console.warn('Comment analytics not available');
+                    return { totalComments: 0, commentsByInfluencer: {} };
+                }
+                return await response.json();
+            } catch (error) {
+                console.warn('Failed to load comment analytics:', error);
+                return { totalComments: 0, commentsByInfluencer: {} };
             }
         }
 

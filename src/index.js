@@ -1,9 +1,9 @@
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const IndexingService = require('./indexingService');
-const AnalyticsEngine = require('./analyticsEngine');
-const Database = require('./database');
+const IndexingService = require('./services/indexingService');
+const AnalyticsEngine = require('./services/analyticsEngine');
+const Database = require('./services/database');
 const { INFLUENCERS, getAllInfluencers } = require('../config/influencers');
 const { DEFAULT_CONFIG } = require('../config/defaults');
 
@@ -218,6 +218,151 @@ app.get('/api/video/:videoId/comments', async (req, res) => {
   } catch (error) {
     res.status(500).json({ 
       error: 'Failed to fetch video comments',
+      message: error.message 
+    });
+  }
+});
+
+// Get overall comment statistics for dashboard
+app.get('/api/analytics/comments', async (req, res) => {
+  try {
+    // Get total comment count
+    const { count: totalComments, error: totalError } = await database.supabase
+      .from('comments')
+      .select('*', { count: 'exact', head: true });
+    
+    if (totalError) throw totalError;
+
+    console.log(`📊 Total comments found: ${totalComments}`);
+
+    // Use fallback approach (more reliable than custom function)
+    const influencerCommentCounts = {};
+    const influencers = await database.getInfluencers();
+    
+    console.log(`📊 Processing ${influencers.length} influencers for comment counts...`);
+
+    // Use the SQL function we created, with fallback
+    const { data: commentsByInfluencer, error: sqlFunctionError } = await database.supabase
+      .rpc('get_comment_counts_by_influencer');
+    
+    if (!sqlFunctionError && commentsByInfluencer) {
+      // Use the efficient SQL function result
+      commentsByInfluencer.forEach(row => {
+        influencerCommentCounts[row.username] = row.comment_count || 0;
+      });
+      console.log(`📊 Used SQL function for comment counts:`, influencerCommentCounts);
+    } else {
+      console.warn('SQL function failed, using fallback approach:', sqlFunctionError?.message);
+      
+      // Fallback: individual queries per influencer
+      for (const influencer of influencers) {
+        try {
+          // Use a raw SQL query for better performance
+          const { data: countResult, error: countError } = await database.supabase
+            .rpc('count_comments_for_channel', { channel_id_param: influencer.channel_id });
+          
+          if (countError) {
+            // Double fallback: simple count approach
+            const { data: videos, error: videoError } = await database.supabase
+              .from('videos')
+              .select('video_id')
+              .eq('channel_id', influencer.channel_id);
+            
+            if (!videoError && videos?.length > 0) {
+              const videoIds = videos.map(v => v.video_id);
+              const { count: commentCount, error: commentError } = await database.supabase
+                .from('comments')
+                .select('comment_id', { count: 'exact', head: true })
+                .in('video_id', videoIds);
+              
+              if (!commentError) {
+                influencerCommentCounts[influencer.username] = commentCount || 0;
+                console.log(`💬 ${influencer.username}: ${commentCount} comments (fallback)`);
+              } else {
+                influencerCommentCounts[influencer.username] = 0;
+                console.error(`❌ Error counting comments for ${influencer.username}:`, commentError.message);
+              }
+            } else {
+              influencerCommentCounts[influencer.username] = 0;
+              console.log(`📹 ${influencer.username} has no videos indexed`);
+            }
+          } else {
+            influencerCommentCounts[influencer.username] = countResult || 0;
+            console.log(`💬 ${influencer.username}: ${countResult} comments`);
+          }
+        } catch (error) {
+          console.error(`❌ Error processing ${influencer.username}:`, error.message);
+          influencerCommentCounts[influencer.username] = 0;
+        }
+      }
+    }
+
+    console.log(`📊 Final comment counts:`, influencerCommentCounts);
+
+    res.json({
+      totalComments: totalComments || 0,
+      commentsByInfluencer: influencerCommentCounts
+    });
+  } catch (error) {
+    console.error('❌ Comment analytics error:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch comment analytics',
+      message: error.message 
+    });
+  }
+});
+
+// Debug endpoint to check comment scraping status
+app.get('/api/debug/comment-status/:username', async (req, res) => {
+  try {
+    const { username } = req.params;
+    
+    // Get influencer info
+    const { data: influencer, error: influencerError } = await database.supabase
+      .from('influencers')
+      .select('*')
+      .eq('username', username)
+      .single();
+    
+    if (influencerError) {
+      return res.status(404).json({ error: 'Influencer not found' });
+    }
+    
+    // Get sample videos for this influencer
+    const { data: sampleVideos, error: videoError } = await database.supabase
+      .from('videos')
+      .select('video_id, title, comment_count')
+      .eq('channel_id', influencer.channel_id)
+      .order('published_at', { ascending: false })
+      .limit(10);
+    
+    if (videoError) throw videoError;
+    
+    // Check comment status for these videos
+    const videoIds = sampleVideos.map(v => v.video_id);
+    const { data: commentStatus, error: statusError } = await database.supabase
+      .from('video_comment_status')
+      .select('*')
+      .in('video_id', videoIds);
+    
+    // Count actual comments for these videos
+    const { count: actualComments, error: commentError } = await database.supabase
+      .from('comments')
+      .select('*', { count: 'exact', head: true })
+      .in('video_id', videoIds);
+    
+    res.json({
+      influencer,
+      sampleVideos,
+      commentStatus: commentStatus || [],
+      actualComments: actualComments || 0,
+      totalVideos: sampleVideos.length
+    });
+    
+  } catch (error) {
+    console.error('❌ Debug error:', error);
+    res.status(500).json({ 
+      error: 'Failed to get debug info',
       message: error.message 
     });
   }
