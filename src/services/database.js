@@ -472,6 +472,7 @@ class Database {
     
     const sentimentData = {
       video_id: analysisResult.videoId,
+      channel_id: analysisResult.channelId, // Add channel_id for direct access
       total_comments_analyzed: summary.total_comments_analyzed,
       net_sentiment_score: summary.net_sentiment_score,
       positive_count: summary.positive_count,

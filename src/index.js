@@ -4,8 +4,8 @@ const cors = require('cors');
 const IndexingService = require('./services/indexingService');
 const AnalyticsEngine = require('./services/analyticsEngine');
 const Database = require('./services/database');
-const { INFLUENCERS, getAllInfluencers } = require('../config/influencers');
-const { DEFAULT_CONFIG } = require('../config/defaults');
+const { INFLUENCERS } = require('./config/influencers');
+const { DEFAULT_CONFIG } = require('./config/defaults');
 
 const app = express();
 const port = process.env.PORT || 3000;

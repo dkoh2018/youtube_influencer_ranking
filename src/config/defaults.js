@@ -1,12 +1,12 @@
 const DEFAULT_CONFIG = {
   // === PROCESSING LIMITS ===
   maxInfluencers: 'all',       // Process all influencers (or number)
-  videosPerInfluencer: 50,     // Most recent videos per influencer
+  videosPerInfluencer: 100,     // Most recent videos per influencer
   
   // === COMMENT CONFIGURATION ===
-  commentsPerVideo: 200,       // Comments per video
+  commentsPerVideo: 400,       // Comments per video
   includeComments: true,       // Comment processing
-  maxCommentsPerCall: 100,     // Comments per request
+  maxCommentsPerCall: 200,     // Comments per request
   
   // === CONCURRENCY CONFIGURATION (NEW!) ===
   concurrentRequests: 3,       // Process 3 videos at the same time

@@ -36,12 +36,7 @@ const INFLUENCER_CATEGORIES = {
   ]
 };
 
-const getAllInfluencers = () => {
-  return Object.values(INFLUENCER_CATEGORIES).flat();
-};
-
 module.exports = {
   INFLUENCERS,
-  INFLUENCER_CATEGORIES,
-  getAllInfluencers
+  INFLUENCER_CATEGORIES
 };

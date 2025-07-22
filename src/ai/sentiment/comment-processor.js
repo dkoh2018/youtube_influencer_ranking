@@ -6,40 +6,34 @@ async function testSentimentAnalysis() {
   const db = new Database();
   
   try {
-    console.log('🔍 Finding IShowSpeed in database...');
+    console.log('🔍 Getting all influencers from database...');
     
-    // Get all influencers to find IShowSpeed
+    // Get all influencers
     const influencers = await db.getInfluencers();
     console.log(`Found ${influencers.length} influencers in database`);
     
-    // Find IShowSpeed
-    const ishowspeed = influencers.find(inf => 
-      inf.username?.toLowerCase().includes('ishowspeed') || 
-      inf.channel_title?.toLowerCase().includes('ishowspeed') ||
-      inf.username?.toLowerCase().includes('speed') ||
-      inf.channel_title?.toLowerCase().includes('speed')
-    );
-    
-    if (!ishowspeed) {
-      console.log('❌ IShowSpeed not found in database');
+    if (influencers.length === 0) {
+      console.log('❌ No influencers found in database');
       return;
     }
     
-    console.log(`✅ Found IShowSpeed: ${ishowspeed.username} (${ishowspeed.channel_title})`);
-    
-    // Get his 2 most recent videos
-    console.log('\n🎥 Getting 2 most recent videos...');
-    const recentVideos = await db.getInfluencerVideos(ishowspeed.channel_id, 2);
-    
-    if (recentVideos.length === 0) {
-      console.log('❌ No videos found for IShowSpeed');
-      return;
-    }
-    
-    console.log(`✅ Found ${recentVideos.length} recent videos`);
-    
-    // For each video, get comments and get top 100 longest
+    // For each influencer, get comments and get top 100 longest
     const videoAnalysisData = [];
+    
+    for (let influencerIndex = 0; influencerIndex < influencers.length; influencerIndex++) {
+      const influencer = influencers[influencerIndex];
+      console.log(`\n👤 Processing Influencer ${influencerIndex + 1}/${influencers.length}: ${influencer.username} (${influencer.channel_title})`);
+      
+      // Get 20 most recent videos for this influencer
+      console.log(`🎥 Getting 20 most recent videos for ${influencer.username}...`);
+      const recentVideos = await db.getInfluencerVideos(influencer.channel_id, 20);
+      
+      if (recentVideos.length === 0) {
+        console.log(`   ❌ No videos found for ${influencer.username}`);
+        continue;
+      }
+      
+      console.log(`   ✅ Found ${recentVideos.length} recent videos`);
     
     for (let i = 0; i < recentVideos.length; i++) {
       const video = recentVideos[i];
@@ -211,6 +205,7 @@ async function testSentimentAnalysis() {
       
       videoAnalysisData.push({
         videoId: video.videoId,
+        channelId: influencer.channel_id, // Add channel_id for sentiment analysis
         title: video.title,
         publishedAt: video.publishedAt,
         commentCount: validComments.length,
@@ -222,6 +217,7 @@ async function testSentimentAnalysis() {
       const preview = combinedText.substring(0, 300) + '...';
       console.log(`   📝 Text preview: ${preview}`);
     }
+    } // End influencer loop
     
     console.log('\n📊 SUMMARY:');
     console.log(`Total videos processed: ${videoAnalysisData.length}`);

@@ -6,8 +6,8 @@
 
 require('dotenv').config();
 const AnalyticsEngine = require('./src/services/analyticsEngine');
-const { INFLUENCERS } = require('./config/influencers');
-const { DEFAULT_CONFIG } = require('./config/defaults');
+const { INFLUENCERS } = require('./src/config/influencers');
+const { DEFAULT_CONFIG } = require('./src/config/defaults');
 
 async function runAnalyticsEngine() {
   console.log('YouTube Analytics Engine');
