@@ -2,10 +2,10 @@
   "name": "youtube-analytics-backend",
   "version": "1.0.0",
   "description": "YouTube Analytics Backend with Comment Processing",
-  "main": "src/index.js",
+  "main": "src/backend/index.js",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "nodemon src/index.js",
+    "start": "node src/backend/index.js",
+    "dev": "nodemon src/backend/index.js",
     "test": "jest",
     "test:watch": "jest --watch"
   },
